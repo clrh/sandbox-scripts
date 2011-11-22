@@ -1,0 +1,38 @@
+(work in progress) Little scripts written to parse files from solr, linked to solr meter sometimes.
+
+$ perl extractqueries.pl -eq -f sample.log > tmp.queries
+------------------------------------------------------
+
+sample.log contains lines like:
+[Wed Nov 16 00:01:19 2011] opac-search.pl: OpacSolrSimpleSearch:q=int_authid:70658: at /home/koha/src/opac/opac-search.pl line 361.
+[Wed Nov 16 10:16:42 2011] search.pl: ProSolrSimpleSearch:q=9782809502343: at /home/koha/src/catalogue/search.pl line 365.
+
+tmp.queries will contains:
+int_authid:7065
+9782809502343
+
+
+$ perl searchanalysis.pl -f logs/2011_11_16.stderrout.log
+---------------------------------------------------------
+
+For a day, count updates and select calls in solr logs, find topqueries (WIP).
+Top 10 queries
+1       389865  *:*
+2       649     int_authid:377411
+3       590     int_authid:332273
+4       553     int_authid:217983
+5       503     ste_title-series:"Suites+(Métailié)"
+6       503     int_authid:24470
+7       386     int_authid:64266
+8       385     int_authid:33101
+9       347     int_authid:181123
+10      275     int_authid:56440
+Updates:        440
+Searches:       409173
+CountUsageAuth: 389950
+PertinentSearch:        19223
+
+$ perl transformSolrMeterRecords.pl -f data/kohatest_bfm.100.xml
+----------------------------------------------------------------
+In input takes a xml solr search result and gives in output something you can use with solrmeter http://code.google.com/p/solrmeter/wiki/updates
+(Writes a records.out file)
