@@ -3,6 +3,9 @@
 use Modern::Perl;
 use Getopt::Long;
 use Data::Dumper;
+use List::Util qw(sum);  
+
+sub avg {     return sum(@_)/@_; }
 
 my $usage = <<EOF;
 searchanalysis.pl - analyse solr stdout logs to extract metrics.
@@ -26,6 +29,8 @@ open FH, "<$file" or die "Can't open file $file: $!";
 
 my @updatelist;
 my @queries;
+my @searchTime;
+my @updateTime;
 # Count "CountUsage"
 my $countusage;
 
@@ -40,7 +45,19 @@ while (my $logline = <FH>) {
     push @queries, $1;
     if ($logline =~ /rows=999999999/) {$countusage++;}
    }
+
+  if ($logline =~ /path=\/select.*&q=(.*?)&.*QTime=(.+)$/) {         # count QTime for select
+       push @searchTime, {q =>$1,t=>$2};
+  } elsif ($logline =~ /path=\/update.*QTime=(.+)$/) {         # count QTime for update
+       push @updateTime, {t=>$1};
+  }
 }
+
+@searchTime = sort { $a->{t} < $b->{t} } @searchTime;
+@updateTime = sort { $a->{t} < $b->{t} } @updateTime;
+
+my $avgsearchqtime = avg (map {$_->{t}} @searchTime);
+my $avgupdateqtime = avg (map {$_->{t}} @updateTime);
 
 # Find 10 top queries
 
@@ -54,9 +71,21 @@ for (0..$nb-1) {
   say $_+1 . "\t" . $topqueries{$q} . "\t" . $q;
 }
 
+say "\nTop $nb QTime update";
+say "Average: $avgupdateqtime";
+for (0..$nb-1) {
+  say $_+1 . "\t" . $updateTime[$_]{'t'};
+}
+
+say "\nTop $nb QTime search";
+say "Average: $avgsearchqtime";
+for (0..$nb-1) {
+  say $_+1 . "\t" . $searchTime[$_]{'q'}." ".$searchTime[$_]{'t'};
+}
+
 $verbose and warn Data::Dumper::Dumper (@updatelist);
 $verbose and warn Data::Dumper::Dumper (@sortedqueries);
-say "Updates:\t".scalar (@updatelist);
+say "\nUpdates:\t".scalar (@updatelist);
 say "Searches:\t".scalar (@queries);
 say "CountUsageAuth:\t".$countusage;
 say "PertinentSearch:\t".(scalar (@queries) - $countusage);
