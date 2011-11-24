@@ -29,6 +29,7 @@ open FH, "<$file" or die "Can't open file $file: $!";
 
 my @updatelist;
 my @queries;
+my @fq;
 my @searchTime;
 my @updateTime;
 # Count "CountUsage"
@@ -39,25 +40,32 @@ my $countusage;
 while (my $logline = <FH>) {
   if ($logline =~ /:q=(.+): at/) {                # find queries "... opac-search.pl: OpacSolrSimpleSearch:q=int_authid:136226: at /home/koha..."
     push @queries, $1;
-  } elsif ($logline =~ /add=\[(.*?)\]/) {         # update matches
-    push @updatelist, $1;
   } elsif ($logline =~ /&q=(.*?)&facet.limit=/) { # query matches
     push @queries, $1;
     if ($logline =~ /rows=999999999/) {$countusage++;}
-   }
+  }
+
+  while ($logline =~ /fq=([^&]*)&/g) {
+    push @fq, $1;
+  } 
+
 
   if ($logline =~ /path=\/select.*&q=(.*?)&.*QTime=(.+)$/) {         # count QTime for select
+    #if ($2 > 500) {
        push @searchTime, {q =>$1,t=>$2};
-  } elsif ($logline =~ /path=\/update.*QTime=(.+)$/) {         # count QTime for update
-       push @updateTime, {t=>$1};
+    #}
+  } elsif ($logline =~ /path=\/update.*QTime=([0-9]+).*$/) {         # count QTime for update
+    #if ($1 > 500) {
+       push @updateTime, $1;
+    #}
   }
 }
 
-@searchTime = sort { $a->{t} < $b->{t} } @searchTime;
-@updateTime = sort { $a->{t} < $b->{t} } @updateTime;
+@searchTime = sort { $b->{t} <=> $a->{t} } @searchTime;
+@updateTime = sort {$b <=> $a} @updateTime;
 
 my $avgsearchqtime = avg (map {$_->{t}} @searchTime);
-my $avgupdateqtime = avg (map {$_->{t}} @updateTime);
+my $avgupdateqtime = avg (@updateTime);
 
 # Find 10 top queries
 
@@ -71,21 +79,29 @@ for (0..$nb-1) {
   say $_+1 . "\t" . $topqueries{$q} . "\t" . $q;
 }
 
-say "\nTop $nb QTime update";
-say "Average: $avgupdateqtime";
+my %topfq; 
+foreach my $q (@fq) { $topfq{$q}++; }
+my @sortedfq = sort { $topfq{$b} <=> $topfq{$a} } keys %topfq;
+say "Top $nb filters";
 for (0..$nb-1) {
-  say $_+1 . "\t" . $updateTime[$_]{'t'};
+  $q = $sortedfq[$_]; 
+  say $_+1 . "\t" . $topfq{$q} . "\t" . $q;
 }
 
-say "\nTop $nb QTime search";
-say "Average: $avgsearchqtime";
+say "\nTop $nb QTime update - nb ".scalar @updateTime;
+say "Update average(ms): $avgupdateqtime";
 for (0..$nb-1) {
-  say $_+1 . "\t" . $searchTime[$_]{'q'}." ".$searchTime[$_]{'t'};
+  say $updateTime[$_];
 }
 
-$verbose and warn Data::Dumper::Dumper (@updatelist);
+say "\nTop $nb QTime search - nb ".scalar @searchTime;
+say "Search average (ms): $avgsearchqtime";
+for (0..$nb-1) {
+  say $searchTime[$_]{'t'}. "\t". $searchTime[$_]{'q'};
+}
+
 $verbose and warn Data::Dumper::Dumper (@sortedqueries);
-say "\nUpdates:\t".scalar (@updatelist);
+say "\nUpdates:\t".scalar (@updateTime);
 say "Searches:\t".scalar (@queries);
 say "CountUsageAuth:\t".$countusage;
 say "PertinentSearch:\t".(scalar (@queries) - $countusage);
