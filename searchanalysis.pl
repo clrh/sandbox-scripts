@@ -27,7 +27,7 @@ GetOptions( "help" => \$help,
 
 open FH, "<$file" or die "Can't open file $file: $!";
 
-my @updatelist;
+my $addnb;
 my @queries;
 my @fq;
 my @searchTime;
@@ -42,7 +42,9 @@ while (my $logline = <FH>) {
     push @queries, $1;
   } elsif ($logline =~ /&q=(.*?)&facet.limit=/) { # query matches
     push @queries, $1;
-    if ($logline =~ /rows=999999999/) {$countusage++;}
+  if ($logline =~ /rows=999999999/) {$countusage++;}
+  } elsif ($logline =~ /add=/) { # update matches
+    $addnb += 1;
   }
 
   while ($logline =~ /fq=([^&]*)&/g) {
@@ -101,9 +103,10 @@ for (0..$nb-1) {
 }
 
 $verbose and warn Data::Dumper::Dumper (@sortedqueries);
-say "\nUpdates:\t".scalar (@updateTime);
-say "Searches:\t".scalar (@queries);
-say "CountUsageAuth:\t".$countusage;
-say "PertinentSearch:\t".(scalar (@queries) - $countusage);
+say "\nUpdates \t".scalar (@updateTime);
+say "Adds\t\t".scalar ($addnb);
+say "Searches\t".scalar (@queries);
+say "CountUsageAuth\t".$countusage;
+say "PertinentSearch ".(scalar (@queries) - $countusage);
 
 close FH;
