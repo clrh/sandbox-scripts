@@ -7,7 +7,6 @@ use List::Util qw(sum);
 
 sub avg {     return sum(@_)/@_; }
 
-
 my $usage = <<EOF;
 accesslogsanalysis.pl - analyse apache acces logs to extract metrics.
     -h|--help           Print this help and exit;
@@ -22,12 +21,16 @@ my $help      = 0;
 my $file      = 0;
 my $verbose   = 0;
 my $nb        = 10;
+my $static    = 0;
 
 GetOptions( "help" => \$help,
             "verbose" => \$verbose,
             "file=s" => \$file,
             "nb=s" => \$nb,
+            "static" => \$static,
 ) or die $usage;
+
+die $usage if $help;
 
 open FH, "<$file" or die "Can't open file $file: $!";
 
@@ -38,14 +41,22 @@ my @postTime;
 
 # Matches collection
 
+my $q;
+my $d;
+my $t;
+
 while (my $logline = <FH>) {
   if ($logline =~ /- - \[(.*) \+0100\] "GET (.+) HTTP.*time=([0-9]+).*$/) {
-    push @calledget, $2;
-    push @getTime, {d=> $1,q =>$2,t=>$3};
+    $d = $1; $q = $2; $t = $3;
+    if ($static eq 0)  {next if ($q !~ /\.pl/)};
+    push @calledget, $q;
+    push @getTime, {d=> $d,q =>$q,t=>$t};
   }
   if ($logline =~ /- - \[(.*) \+0100\] "POST (.+) HTTP.*time=([0-9]+).*$/) {
-    push @calledpost, $2;
-    push @postTime, {d=>$1,q =>$2,t=>$3};
+    $d = $1; $q = $2; $t = $3;
+    if ($static eq 0)  {next if ($q !~ /\.pl/)};
+    push @calledpost, $q;
+    push @postTime, {d=>$d,q =>$q,t=>$t};
   }
 }
 
@@ -58,7 +69,6 @@ my $avgposttime = avg (map {$_->{t}} @postTime);
 # Find top called scripts
 
 my %topqueries; 
-my $q;
 foreach my $q (@calledget) { $topqueries{$q}++; }
 my @sortedqueries = sort { $topqueries{$b} <=> $topqueries{$a} } keys %topqueries;
 say "Top $nb get called";
