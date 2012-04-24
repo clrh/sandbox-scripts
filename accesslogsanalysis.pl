@@ -46,13 +46,13 @@ my $d;
 my $t;
 
 while (my $logline = <FH>) {
-  if ($logline =~ /- - \[(.*) \+0100\] "GET (.+) HTTP.*time=([0-9]+).*$/) {
+  if ($logline =~ /- - \[(.*) \+\d{4}\] "GET (.+) HTTP.*time=([0-9]+).*$/) {
     $d = $1; $q = $2; $t = $3;
     if ($static eq 0)  {next if ($q !~ /\.pl/)};
     push @calledget, $q;
     push @getTime, {d=> $d,q =>$q,t=>$t};
   }
-  if ($logline =~ /- - \[(.*) \+0100\] "POST (.+) HTTP.*time=([0-9]+).*$/) {
+  if ($logline =~ /- - \[(.*) \+\d{4}\] "POST (.+) HTTP.*time=([0-9]+).*$/) {
     $d = $1; $q = $2; $t = $3;
     if ($static eq 0)  {next if ($q !~ /\.pl/)};
     push @calledpost, $q;
@@ -61,9 +61,17 @@ while (my $logline = <FH>) {
 }
 
 @getTime = sort { $b->{t} <=> $a->{t} } @getTime;
-my $avggettime = avg (map {$_->{t}} @getTime);
 @postTime = sort { $b->{t} <=> $a->{t} } @postTime;
-my $avgposttime = avg (map {$_->{t}} @postTime);
+
+my $avggettime;
+my $avgposttime;
+
+if (scalar (@getTime) ne 0 || scalar (@postTime) ne 0) {
+    $avggettime = avg (map {$_->{t}} @getTime);
+    $avgposttime = avg (map {$_->{t}} @postTime);
+} else {
+    die("[ERROR] getTime size:".scalar (@getTime). " postTime size:".scalar (@postTime));
+}
 
 
 # Find top called scripts

@@ -40,7 +40,7 @@ my $countusage;
 while (my $logline = <FH>) {
   if ($logline =~ /:q=(.+): at/) {                # find queries "... opac-search.pl: OpacSolrSimpleSearch:q=int_authid:136226: at /home/koha..."
     push @queries, $1;
-  } elsif ($logline =~ /&q=(.*?)&facet.limit=/) { # query matches
+  } elsif ($logline =~ /&q=(.*?)&/) { # query matches
     push @queries, $1;
   if ($logline =~ /rows=999999999/) {$countusage++;}
   } elsif ($logline =~ /add=/) { # update matches
